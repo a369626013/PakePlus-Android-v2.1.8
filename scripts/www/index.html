@@ -1,11 +1,1478 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>酷鱼流量查询</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <script>
+        // 配置Tailwind自定义主题
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        telecom: '#0096E6',    // 电信蓝
+                        unicom: '#E6007E',     // 联通粉紫
+                        mobile: '#E67700',     // 移动橙红
+                        success: '#00B42A',
+                        warning: '#FF7D00',
+                        danger: '#F53F3F',
+                        darkCard: '#2D2D2D',
+                        overlay: 'rgba(255,255,255,0.85)',
+                        darkOverlay: 'rgba(45,45,45,0.9)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'card': '0 8px 24px rgba(0, 0, 0, 0.08)',
+                        'darkCard': '0 8px 24px rgba(0, 0, 0, 0.2)',
+                        'hover': '0 12px 32px rgba(22, 93, 255, 0.12)',
+                        'tab': '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        'card-hover': '0 10px 30px rgba(22, 93, 255, 0.15)',
+                    },
+                    borderRadius: {
+                        'xl': '12px',
+                        '2xl': '16px',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-gradient {
+                background: linear-gradient(135deg, var(--tw-gradient-stops));
+            }
+            .text-shadow {
+                text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }
+            .progress-animate {
+                transition: width 0.5s ease-in-out;
+            }
+            .bg-blur {
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
+            .tab-active {
+                border-bottom: 2px solid #165DFF;
+                color: #165DFF;
+                font-weight: 600;
+                background-color: rgba(22, 93, 255, 0.05);
+            }
+            .dark .tab-active {
+                border-bottom: 2px solid #165DFF;
+                color: #4080FF;
+                background-color: rgba(64, 128, 255, 0.1);
+            }
+            .operator-tag {
+                transition: all 0.3s ease;
+            }
+            .operator-tag:hover {
+                transform: scale(1.05);
+            }
+            .card-hover-effect {
+                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+            .card-hover-effect:hover {
+                transform: translateY(-5px);
+                box-shadow: var(--tw-shadow-card-hover);
+            }
+            /* 空状态骨架屏样式 */
+            .skeleton {
+                background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                background-size: 200% 100%;
+                animation: skeleton-loading 1.5s infinite;
+            }
+            .dark .skeleton {
+                background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+                background-size: 200% 100%;
+            }
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+            /* 空数据提示样式 */
+            .empty-data {
+                color: #9ca3af;
+                dark:color #6b7280;
+                text-align: center;
+                padding: 2rem 0;
+            }
+        }
+    </style>
+    <style>
+        /* 背景图片样式 - 自适应优化 */
+        body {
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease-in-out;
+            background-size: cover;
+        }
+        
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #165DFF;
+        }
+        
+        /* 卡号标签滚动 */
+        .tab-container {
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .tab-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* 文件上传按钮样式 */
+        #bgFileInput {
+            display: none;
+        }
+        
+        /* 卡片动画 */
+        .card-content {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 输入框焦点样式 */
+        input:focus {
+            box-shadow: 0 0 0 3px rgba(22, 93, 255, 0.15) !important;
+        }
+        .dark input:focus {
+            box-shadow: 0 0 0 3px rgba(64, 128, 255, 0.2) !important;
+        }
+        
+        /* 确保卡号操作按钮可点击 */
+        .toggle-number, .copy-number {
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 10;
+            transition: all 0.2s ease;
+        }
+        
+        /* 优化复制/隐藏按钮交互 */
+        .toggle-number:hover, .copy-number:hover {
+            color: #165DFF !important;
+            transform: scale(1.1);
+        }
+        .dark .toggle-number:hover, .dark .copy-number:hover {
+            color: #4080FF !important;
+        }
+        
+        /* 卡号显示容器样式优化 */
+        .card-number-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        /* 新增：图标美化样式 */
+        .icon-box {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background-color: rgba(22, 93, 255, 0.1);
+            color: #165DFF;
+        }
+        .dark .icon-box {
+            background-color: rgba(64, 128, 255, 0.15);
+            color: #4080FF;
+        }
+        .icon-box.mobile {
+            background-color: rgba(230, 119, 0, 0.1);
+            color: #E67700;
+        }
+        .dark .icon-box.mobile {
+            background-color: rgba(230, 119, 0, 0.15);
+        }
+        .icon-box.unicom {
+            background-color: rgba(230, 0, 126, 0.1);
+            color: #E6007E;
+        }
+        .dark .icon-box.unicom {
+            background-color: rgba(230, 0, 126, 0.15);
+        }
+        .icon-box.telecom {
+            background-color: rgba(0, 150, 230, 0.1);
+            color: #0096E6;
+        }
+        .dark .icon-box.telecom {
+            background-color: rgba(0, 150, 230, 0.15);
+        }
+        
+        /* 标签删除按钮优化 */
+        .tab-delete-btn {
+            display: none;
+            margin-left: 4px;
+            font-size: 10px;
+            color: #9CA3AF;
+            transition: all 0.2s ease;
+        }
+        .tab-btn:hover .tab-delete-btn {
+            display: inline-block;
+        }
+        .tab-btn:hover .tab-delete-btn:hover {
+            color: #F53F3F;
+            transform: scale(1.2);
+        }
+        .dark .tab-delete-btn {
+            color: #6B7280;
+        }
+        .dark .tab-delete-btn:hover {
+            color: #FF6B6B;
+        }
+        
+        /* 刷新按钮样式优化 */
+        .refreshBtn {
+            transition: all 0.3s ease;
+        }
+        .refreshBtn:hover {
+            background-color: rgba(22, 93, 255, 0.2) !important;
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-500 min-h-screen" style="background-image: url('');">
+    <!-- 背景遮罩层 -->
+    <div class="fixed inset-0 bg-gray-50/80 dark:bg-gray-900/85 z-0"></div>
+
+    <!-- 顶部导航栏 -->
+    <header class="bg-white/90 dark:bg-gray-800/90 bg-blur shadow-md fixed top-0 left-0 right-0 z-30 transition-all duration-500">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold text-primary dark:text-white flex items-center gap-2">
+                <i class="fa fa-tint text-lg"></i>
+                <span>酷鱼流量查询</span>
+            </h1>
+            <div class="flex gap-3 items-center">
+                <!-- 背景设置按钮 -->
+                <button id="bgSettingBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300">
+                    <i class="fa fa-picture-o text-primary dark:text-white"></i>
+                </button>
+                <!-- 主题切换按钮 -->
+                <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300">
+                    <i class="fa fa-moon-o dark:hidden text-gray-700 text-lg"></i>
+                    <i class="fa fa-sun-o hidden dark:block text-yellow-300 text-lg"></i>
+                </button>
+                <!-- 添加卡号按钮 -->
+                <button id="addCardBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300">
+                    <i class="fa fa-plus text-primary dark:text-white text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 卡号标签栏（初始为空） -->
+        <div class="tab-container bg-white/80 dark:bg-gray-800/80 bg-blur shadow-tab px-4 py-1">
+            <div class="flex gap-2 md:gap-4 min-w-max" id="tabList">
+                <!-- 初始无标签，添加卡号后动态生成 -->
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 pt-36 pb-16 relative z-10">
+        <div id="cardContainer" class="max-w-3xl mx-auto">
+            <!-- 初始无卡片内容，添加卡号后动态生成 -->
+        </div>
+
+        <!-- 空状态提示（默认显示） -->
+        <div id="emptyState" class="text-center py-24 max-w-3xl mx-auto">
+            <div class="bg-white/90 dark:bg-gray-800/90 bg-blur rounded-2xl p-8 shadow-card dark:shadow-darkCard">
+                <div class="icon-box mx-auto mb-4">
+                    <i class="fa fa-mobile text-xl"></i>
+                </div>
+                <p class="text-lg text-gray-500 dark:text-gray-400">暂无卡号，请点击右上角添加</p>
+                <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">添加后自动查询流量数据</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 背景设置弹窗 -->
+    <div id="bgModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md transition-all duration-500 transform scale-95 opacity-0" id="bgModalContent">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fa fa-picture-o text-primary"></i>
+                背景图片设置
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-300 mb-2">背景图片URL</label>
+                    <input type="text" id="bgUrlInput" placeholder="输入图片链接（支持jpg/png/webp）" 
+                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
+                </div>
+                
+                <!-- 本地图片上传 -->
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-300 mb-2">选择本地图片</label>
+                    <div class="flex items-center gap-3">
+                        <label for="bgFileInput" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all cursor-pointer flex items-center gap-2">
+                            <i class="fa fa-upload text-primary"></i>
+                            <span>选择图片</span>
+                        </label>
+                        <input type="file" id="bgFileInput" accept="image/*">
+                        <span id="fileName" class="text-sm text-gray-500 dark:text-gray-400">未选择文件</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-3">
+                    <!-- 预设背景 -->
+                    <div class="bg-cover bg-center rounded-lg h-20 cursor-pointer border-2 border-transparent hover:border-primary transition-all" 
+                         style="background-image: url('https://picsum.photos/id/1042/800/600');" data-bg="https://picsum.photos/id/1042/800/600"></div>
+                    <div class="bg-cover bg-center rounded-lg h-20 cursor-pointer border-2 border-transparent hover:border-primary transition-all" 
+                         style="background-image: url('https://picsum.photos/id/1039/800/600');" data-bg="https://picsum.photos/id/1039/800/600"></div>
+                    <div class="bg-cover bg-center rounded-lg h-20 cursor-pointer border-2 border-transparent hover:border-primary transition-all" 
+                         style="background-image: url('https://picsum.photos/id/1074/800/600');" data-bg="https://picsum.photos/id/1074/800/600"></div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button id="resetBgBtn" class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all">
+                        重置背景
+                    </button>
+                    <button id="confirmBgBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all flex items-center gap-1">
+                        <i class="fa fa-check"></i>
+                        确认设置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加卡号弹窗 -->
+    <div id="addCardModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md transition-all duration-500 transform scale-95 opacity-0" id="addModalContent">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fa fa-plus-circle text-primary"></i>
+                添加物联卡
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-300 mb-2">备注（可选）</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fa fa-tag"></i>
+                        </span>
+                        <input type="text" id="remarkInput" placeholder="例如：物联卡" 
+                            class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-300 mb-2">卡号（tel/iccid均可）</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fa fa-id-card"></i>
+                        </span>
+                        <input type="text" id="cardNumberInput" placeholder="输入卡号" 
+                            class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">输入卡号，最多添加4个卡号</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="cancelAddBtn" class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all">
+                    <i class="fa fa-times mr-1"></i>取消
+                </button>
+                <button id="confirmAddBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all flex items-center gap-1">
+                    <i class="fa fa-plus"></i>
+                    确认添加
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div id="deleteConfirmModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm transition-all duration-500 transform scale-95 opacity-0" id="deleteModalContent">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fa fa-exclamation-circle text-danger"></i>
+                确认删除
+            </h3>
+            <p class="text-gray-600 dark:text-gray-300 mb-6">
+                确定要删除该卡片吗？此操作不可撤销。
+            </p>
+            <div class="flex justify-end gap-3">
+                <button id="cancelDeleteBtn" class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all">
+                    <i class="fa fa-times mr-1"></i>取消
+                </button>
+                <button id="confirmDeleteBtn" class="px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger/90 transition-all flex items-center gap-1">
+                    <i class="fa fa-trash"></i>
+                    确认删除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示框 -->
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800/95 text-white px-5 py-3 rounded-lg shadow-xl z-50 hidden transition-all duration-300 transform translate-y-4 opacity-0">
+        <div class="flex items-center gap-2">
+            <i class="fa fa-check-circle text-green-400" id="toastIcon"></i>
+            <span id="toastText">操作成功</span>
+        </div>
+    </div>
+
+    <script>
+        // ========== 全局常量和工具函数 ==========
+        // API基础配置（根据实际接口调整）
+        const API_CONFIG = {
+            baseUrl: 'http://mobile.kuyichong.com/client/v3',
+            uid: '50' // 固定UID，根据实际情况调整
+        };
+
+        // 自动更新定时器存储
+        const autoUpdateTimers = {};
+        
+        // 流量单位转换：M转GB
+        function formatFlow(mValue) {
+            const gbValue = parseFloat(mValue) / 1024;
+            return gbValue.toFixed(2) + ' GB';
+        }
+
+        // 流量单位原始值转换（M转数字）
+        function parseFlowValue(mValue) {
+            if (typeof mValue === 'string') {
+                return parseFloat(mValue.replace('M', '')) || 0;
+            }
+            return parseFloat(mValue) || 0;
+        }
+
+        // 根据APN名称获取运营商信息
+        function getOperatorByApn(apnName) {
+            if (!apnName) return { cls: 'telecom', name: '未知运营商' };
+            
+            const apn = apnName.toLowerCase();
+            if (apn.includes('cm') || apn.includes('miot')) {
+                return { cls: 'mobile', name: '中国移动' };
+            } else if (apn.includes('cu') || apn.includes('unicom')) {
+                return { cls: 'unicom', name: '中国联通' };
+            } else if (apn.includes('ct') || apn.includes('telecom')) {
+                return { cls: 'telecom', name: '中国电信' };
+            } else {
+                return { cls: 'telecom', name: '未知运营商' };
+            }
+        }
+
+        // 格式化卡号显示（隐藏中间部分）
+        function formatCardNumber(number) {
+            if (!number) return '';
+            if (number.length <= 8) return number;
+            return number.replace(/(.{4}).+(.{4})/, '$1****$2');
+        }
+
+        // ========== 本地存储管理 ==========
+        // 存储键名
+        const STORAGE_KEYS = {
+            cards: 'coolfish_cards',
+            darkMode: 'darkMode',
+            bgImage: 'bgImage'
+        };
+
+        // 获取所有卡片数据
+        function getStoredCards() {
+            const stored = localStorage.getItem(STORAGE_KEYS.cards);
+            return stored ? JSON.parse(stored) : [];
+        }
+
+        // 检查卡号是否已存在（通过id/tel/iccid）
+        function isCardExists(identifier) {
+            if (!identifier) return false;
+            
+            const cards = getStoredCards();
+            const identifierLower = identifier.toLowerCase().trim();
+            
+            return cards.some(card => {
+                // 检查存储的卡片ID
+                if (card.id === identifierLower) return true;
+                
+                // 检查API返回的原始数据
+                if (card.loginData) {
+                    const data = card.loginData;
+                    return (
+                        (data.id && data.id.toString() === identifier) ||
+                        (data.tel && data.tel.toLowerCase() === identifierLower) ||
+                        (data.iccid && data.iccid.toLowerCase() === identifierLower)
+                    );
+                }
+                
+                // 检查用户输入的卡号
+                return card.number && card.number.toLowerCase() === identifierLower;
+            });
+        }
+
+        // 保存卡片数据
+        function saveCardToStorage(cardData) {
+            const cards = getStoredCards();
+            // 检查是否已存在相同ID的卡片
+            const existsIndex = cards.findIndex(card => 
+                card.id === cardData.id || 
+                (card.loginData && cardData.loginData && card.loginData.id === cardData.loginData.id)
+            );
+            
+            if (existsIndex !== -1) {
+                // 更新现有卡片
+                cards[existsIndex] = cardData;
+            } else {
+                // 添加新卡片
+                cards.push(cardData);
+            }
+            
+            localStorage.setItem(STORAGE_KEYS.cards, JSON.stringify(cards));
+            return cards;
+        }
+
+        // 删除卡片数据
+        function deleteCardFromStorage(cardId) {
+            let cards = getStoredCards();
+            cards = cards.filter(card => card.id !== cardId);
+            
+            // 清除该卡片的自动更新定时器
+            if (autoUpdateTimers[cardId]) {
+                clearInterval(autoUpdateTimers[cardId]);
+                delete autoUpdateTimers[cardId];
+            }
+            
+            localStorage.setItem(STORAGE_KEYS.cards, JSON.stringify(cards));
+            
+            // 如果没有卡片了，显示空状态
+            if (cards.length === 0) {
+                document.getElementById('emptyState').classList.remove('hidden');
+            }
+            
+            return cards;
+        }
+
+        // ========== API请求函数 ==========
+        // 登录获取cardId和卡信息
+        async function loginCard(cardNumber) {
+            try {
+                const formData = new FormData();
+                formData.append('card', cardNumber);
+                formData.append('uid', API_CONFIG.uid);
+
+                const response = await fetch(`${API_CONFIG.baseUrl}/loginInfo`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`登录失败: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // 统一API返回格式
+                if (data.status !== 0) {
+                    throw new Error(data.message || '登录失败');
+                }
+
+                return data.data; // 返回完整的登录数据
+            } catch (error) {
+                console.error('登录失败:', error);
+                throw error;
+            }
+        }
+
+        // 查询流量数据
+        async function queryFlowData(cardId) {
+            try {
+                const formData = new FormData();
+                formData.append('cardId', cardId);
+
+                const response = await fetch(`${API_CONFIG.baseUrl}/flow`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`查询失败: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // 统一API返回格式
+                if (data.status !== 0) {
+                    throw new Error(data.message || '查询失败');
+                }
+
+                return data.data; // 返回流量数据
+            } catch (error) {
+                console.error('查询流量失败:', error);
+                throw error;
+            }
+        }
+
+        // ========== UI工具函数 ==========
+        // 显示提示框
+        function showToast(text, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+            
+            // 清空之前的定时器，避免多个提示叠加
+            if (toast.timer) clearTimeout(toast.timer);
+            
+            toastText.textContent = text;
+            toast.classList.remove('hidden', 'translate-y-4', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            if (isError) {
+                toastIcon.className = 'fa fa-exclamation-circle text-danger';
+                toast.classList.add('bg-danger/95');
+                toast.classList.remove('bg-gray-800/95');
+            } else {
+                toastIcon.className = 'fa fa-check-circle text-green-400';
+                toast.classList.remove('bg-danger/95');
+                toast.classList.add('bg-gray-800/95');
+            }
+            
+            toast.timer = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-4', 'opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                }, 300);
+            }, 2500);
+        }
+
+        // 弹窗动画函数
+        function showModal(modal, content) {
+            modal.classList.remove('hidden');
+            // 防止快速点击导致的动画异常
+            content.style.transition = 'none';
+            setTimeout(() => {
+                content.style.transition = '';
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        
+        function hideModal(modal, content) {
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // ========== 页面初始化 ==========
+        // 初始化主题
+        function initTheme() {
+            const themeToggle = document.getElementById('themeToggle');
+            const html = document.documentElement;
+            
+            // 优先读取本地存储，没有则检测系统主题
+            const isDark = localStorage.getItem(STORAGE_KEYS.darkMode) === 'true' || 
+                          (localStorage.getItem(STORAGE_KEYS.darkMode) === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            
+            if (isDark) {
+                html.classList.add('dark');
+            }
+            
+            themeToggle.addEventListener('click', () => {
+                html.classList.toggle('dark');
+                localStorage.setItem(STORAGE_KEYS.darkMode, html.classList.contains('dark'));
+            });
+        }
+
+        // 初始化背景
+        function initBackground() {
+            const body = document.body;
+            const bgUrl = localStorage.getItem(STORAGE_KEYS.bgImage);
+            if (bgUrl) {
+                body.style.backgroundImage = `url('${bgUrl}')`;
+            }
+        }
+
+        // 初始化存储的卡片
+        function initStoredCards() {
+            const cards = getStoredCards();
+            const emptyState = document.getElementById('emptyState');
+            
+            if (cards.length > 0) {
+                emptyState.classList.add('hidden');
+                // 渲染所有卡片
+                cards.forEach(card => {
+                    renderCard(card);
+                    // 启动自动更新（10分钟一次）
+                    startAutoUpdate(card.id);
+                });
+                
+                // 激活第一个卡片
+                const firstTab = document.querySelector('.tab-btn');
+                if (firstTab) {
+                    firstTab.click();
+                }
+            } else {
+                emptyState.classList.remove('hidden');
+            }
+        }
+
+        // ========== 自动更新功能 ==========
+        // 启动卡片自动更新（10分钟一次）
+        function startAutoUpdate(cardId) {
+            // 清除已有定时器，防止重复创建
+            if (autoUpdateTimers[cardId]) {
+                clearInterval(autoUpdateTimers[cardId]);
+            }
+            
+            // 设置新定时器（10分钟 = 600000毫秒）
+            autoUpdateTimers[cardId] = setInterval(() => {
+                updateCardData(cardId, true); // true表示自动更新，不显示加载提示
+            }, 600000);
+            
+            console.log(`卡片${cardId}已启动自动更新，每10分钟更新一次`);
+        }
+
+        // ========== 卡片渲染和更新 ==========
+        // 渲染卡片
+        function renderCard(cardData) {
+            // 渲染标签
+            renderTab(cardData);
+            
+            // 渲染卡片内容
+            renderCardContent(cardData);
+            
+            // 重新绑定事件
+            bindEventsDelegate();
+        }
+
+        // 渲染标签
+        function renderTab(cardData) {
+            const tabList = document.getElementById('tabList');
+            const icons = ['wifi', 'mobile', 'tablet', 'laptop', 'signal', 'router'];
+            const randomIcon = icons[Math.floor(Math.random() * icons.length)];
+            
+            // 获取运营商信息
+            let operator = { cls: 'telecom', name: '未知运营商' };
+            if (cardData.loginData && cardData.loginData.apnName) {
+                operator = getOperatorByApn(cardData.loginData.apnName);
+            }
+            
+            const tabHtml = `
+                <button class="tab-btn px-3 py-2 text-sm md:text-base transition-all duration-300 whitespace-nowrap flex items-center gap-1 hover:text-primary dark:hover:text-primary/80" data-card-id="${cardData.id}">
+                    <i class="fa fa-${randomIcon} text-${operator.cls}"></i>
+                    <span>${cardData.remark || '未备注'}</span>
+                    <i class="fa fa-times tab-delete-btn" data-card-id="${cardData.id}"></i>
+                </button>
+            `;
+            
+            // 先移除同ID的标签，避免重复
+            const existingTab = document.querySelector(`.tab-btn[data-card-id="${cardData.id}"]`);
+            if (existingTab) existingTab.remove();
+            
+            tabList.insertAdjacentHTML('beforeend', tabHtml);
+        }
+
+        // 渲染卡片内容
+        function renderCardContent(cardData) {
+            const cardContainer = document.getElementById('cardContainer');
+            
+            // 获取运营商信息
+            let operator = { cls: 'telecom', name: '未知运营商' };
+            if (cardData.loginData && cardData.loginData.apnName) {
+                operator = getOperatorByApn(cardData.loginData.apnName);
+            }
+            
+            // 准备卡片数据
+            const loginData = cardData.loginData || {};
+            const flowData = cardData.flowData || {};
+            
+            // 格式化显示号码（删除number字段）
+            const displayTel = formatCardNumber(loginData.tel || '');
+            const displayIccid = formatCardNumber(loginData.iccid || '');
+            
+            // 计算流量数据
+            const usedFlow = parseFlowValue(flowData.useFlow || flowData.monthUseFlow || 0);
+            const totalFlow = parseFlowValue(flowData.monthSumFlow || (loginData.sumflow ? loginData.sumflow / 1024 : 0));
+            const restFlow = totalFlow - usedFlow;
+            const usageRate = totalFlow > 0 ? ((usedFlow / totalFlow) * 100).toFixed(1) : 0;
+            
+            const cardHtml = `
+                <div class="card-content" data-card-id="${cardData.id}" style="display: ${cardData.isActive ? 'block' : 'none'}">
+                    <div class="bg-white/95 dark:bg-darkCard/95 bg-blur rounded-2xl p-6 md:p-8 shadow-card dark:shadow-darkCard card-hover-effect">
+                        <!-- 标题和刷新按钮区域（刷新按钮移到右上角） -->
+                        <div class="flex flex-wrap justify-between items-start mb-6 gap-3">
+                            <div>
+                                <div class="flex items-center gap-2 mb-3">
+                                    <h2 class="text-lg md:text-xl font-bold text-gray-800 dark:text-white">${cardData.remark || '未备注'}</h2>
+                                    <span class="operator-tag px-2 py-1 bg-${operator.cls}/10 text-${operator.cls} dark:bg-${operator.cls}/20 dark:text-${operator.cls}/90 rounded-full text-xs font-medium flex items-center gap-1">
+                                        <i class="fa fa-signal"></i>${operator.name}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">最后查询：${cardData.lastQuery || '未查询'}</p>
+                            </div>
+                            <!-- 刷新按钮移到右上角 -->
+                            <button class="refreshBtn p-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary dark:text-primary/80 transition-all" data-card="${cardData.id}">
+                                <i class="fa fa-refresh"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- 卡号信息区域（删除number字段，只保留tel和iccid） -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                            <!-- 手机号（tel）- 重命名为卡号 -->
+                            <div class="flex flex-wrap items-center gap-2 bg-gray-100 dark:bg-gray-800/60 rounded-lg px-3 py-2 w-full">
+                                <span class="text-sm text-gray-600 dark:text-gray-400">卡号：</span>
+                                <div class="card-number-container flex-1">
+                                    <span class="card-number text-sm font-medium text-gray-800 dark:text-white" data-original="${loginData.tel || ''}">${displayTel || '-'}</span>
+                                    <button class="toggle-number ml-2 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary/80 inline-flex items-center" title="显示完整号码">
+                                        <i class="fa fa-eye"></i>
+                                    </button>
+                                    <button class="copy-number ml-2 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary/80 inline-flex items-center" title="复制号码">
+                                        <i class="fa fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- ICCID -->
+                            <div class="flex flex-wrap items-center gap-2 bg-gray-100 dark:bg-gray-800/60 rounded-lg px-3 py-2 w-full">
+                                <span class="text-sm text-gray-600 dark:text-gray-400">ICCID：</span>
+                                <div class="card-number-container flex-1">
+                                    <span class="card-number text-sm font-medium text-gray-800 dark:text-white" data-original="${loginData.iccid || ''}">${displayIccid || '-'}</span>
+                                    <button class="toggle-number ml-2 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary/80 inline-flex items-center" title="显示完整号码">
+                                        <i class="fa fa-eye"></i>
+                                    </button>
+                                    <button class="copy-number ml-2 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary/80 inline-flex items-center" title="复制号码">
+                                        <i class="fa fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 流量进度条 -->
+                        <div class="mb-8">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-400">流量使用进度</span>
+                                <span class="text-sm font-medium text-gray-800 dark:text-white">${usageRate}%</span>
+                            </div>
+                            <div class="h-3 bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden">
+                                <div class="progress-bar progress-animate ${usageRate > 80 ? 'bg-danger dark:bg-red-500' : 'bg-success dark:bg-green-500'} h-full rounded-full" style="width: ${usageRate}%"></div>
+                            </div>
+                            <div class="flex justify-between mt-2 text-xs">
+                                <span class="text-success dark:text-green-400">剩余：<span class="text-success">${formatFlow(restFlow)}</span></span>
+                                <span class="text-warning dark:text-orange-400">已用：<span class="text-warning">${formatFlow(usedFlow)}</span></span>
+                                <span class="text-primary dark:text-primary/80">总计：<span class="text-primary">${formatFlow(totalFlow)}</span></span>
+                            </div>
+                        </div>
+                        
+                        <!-- 流量信息网格 -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-center">
+                                <div class="icon-box mx-auto mb-2 ${operator.cls}">
+                                    <i class="fa fa-database"></i>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">总流量</p>
+                                <p class="text-xl font-bold text-gray-800 dark:text-white">${formatFlow(totalFlow)}</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-center">
+                                <div class="icon-box mx-auto mb-2">
+                                    <i class="fa fa-calendar-times-o"></i>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">有效期至</p>
+                                <p class="text-sm font-medium text-gray-800 dark:text-white">${flowData.endtime ? flowData.endtime.split(' ')[0] : '-'}</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-center">
+                                <div class="icon-box mx-auto mb-2">
+                                    <i class="fa fa-calendar-check-o"></i>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">开通时间</p>
+                                <p class="text-sm font-medium text-gray-800 dark:text-white">${flowData.starttime ? flowData.starttime.split(' ')[0] : '-'}</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-center">
+                                <div class="icon-box mx-auto mb-2">
+                                    <i class="fa fa-check-circle"></i>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">卡状态</p>
+                                <p class="text-sm font-medium text-success dark:text-green-400">${flowData.cardStatusDesc || loginData.cardStatusDesc || '正常'}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 额外信息 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                                <div class="icon-box">
+                                    <i class="fa fa-calendar-times-o"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">过期时间</p>
+                                    <p class="font-medium text-gray-800 dark:text-white">${flowData.endtime ? flowData.endtime.split(' ')[0] : '-'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                                <div class="icon-box">
+                                    <i class="fa fa-calendar-check-o"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">开通时间</p>
+                                    <p class="font-medium text-gray-800 dark:text-white">${flowData.starttime ? flowData.starttime.split(' ')[0] : '-'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                                <div class="icon-box">
+                                    <i class="fa fa-check-circle"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">状态</p>
+                                    <p class="font-medium text-success dark:text-green-400">${flowData.cardStatusDesc || loginData.cardStatusDesc || '-'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                                <div class="icon-box">
+                                    <i class="fa fa-clock-o"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">已用天数/总天数</p>
+                                    <p class="font-medium text-gray-800 dark:text-white">${flowData.useDay || 0}/${flowData.sumDay || 30}天</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                                <div class="icon-box">
+                                    <i class="fa fa-shopping-bag"></i> <!-- 套餐图标 -->
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">套餐名称</p>
+                                    <p class="font-medium text-gray-800 dark:text-white">${flowData.packageName || '-'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                                <div class="icon-box ${operator.cls}">
+                                    <i class="fa fa-tachometer"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">使用占比</p>
+                                    <p class="font-medium text-gray-800 dark:text-white">${usageRate}%</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 先清空容器中同ID的卡片，避免重复
+            const existingCard = document.querySelector(`.card-content[data-card-id="${cardData.id}"]`);
+            if (existingCard) existingCard.remove();
+            
+            cardContainer.insertAdjacentHTML('beforeend', cardHtml);
+        }
+
+        // 更新卡片数据
+        async function updateCardData(cardId, isAutoUpdate = false) {
+            const cards = getStoredCards();
+            const card = cards.find(c => c.id === cardId);
+            
+            if (!card) {
+                !isAutoUpdate && showToast('卡片不存在', true);
+                return;
+            }
+            
+            try {
+                // 非自动更新时显示加载状态
+                !isAutoUpdate && showToast('正在查询流量数据...');
+                
+                // 1. 登录获取cardId和卡信息
+                const loginData = await loginCard(card.number);
+                
+                // 2. 查询流量数据
+                const flowData = await queryFlowData(loginData.id);
+                
+                // 3. 处理数据
+                const now = new Date();
+                const timeStr = now.toLocaleString();
+                
+                // 计算使用率
+                const usedFlow = parseFlowValue(flowData.useFlow || flowData.monthUseFlow || 0);
+                const totalFlow = parseFlowValue(flowData.monthSumFlow || (loginData.sumflow ? loginData.sumflow / 1024 : 0));
+                const restFlow = totalFlow - usedFlow;
+                const usageRate = totalFlow > 0 ? ((usedFlow / totalFlow) * 100).toFixed(1) : 0;
+                
+                // 4. 更新卡片数据
+                const updatedCard = {
+                    ...card,
+                    loginData: loginData,       // 保存登录接口返回的完整数据
+                    flowData: flowData,         // 保存流量接口返回的完整数据
+                    totalFlow: formatFlow(totalFlow),
+                    usedFlow: formatFlow(usedFlow),
+                    restFlow: formatFlow(restFlow),
+                    usageRate: usageRate,
+                    lastQuery: timeStr,
+                    endTime: flowData.endtime ? flowData.endtime.split(' ')[0] : '',
+                    startTime: flowData.starttime ? flowData.starttime.split(' ')[0] : '',
+                    cardStatusDesc: flowData.cardStatusDesc || '正常',
+                    useDay: flowData.useDay || 0,
+                    sumDay: flowData.sumDay || 30,
+                    isActive: true
+                };
+                
+                // 5. 保存到本地存储
+                saveCardToStorage(updatedCard);
+                
+                // 6. 重新渲染卡片
+                renderCardContent(updatedCard);
+                
+                // 7. 确保卡片处于显示状态
+                showCardById(cardId);
+                
+                // 8. 显示提示（非自动更新时）
+                !isAutoUpdate && showToast('流量数据更新成功');
+                
+            } catch (error) {
+                // 自动更新时只打印错误，不弹窗
+                if (!isAutoUpdate) {
+                    showToast(`查询失败: ${error.message}`, true);
+                } else {
+                    console.error(`卡片${cardId}自动更新失败:`, error);
+                }
+            }
+        }
+
+        // 根据ID显示指定卡片
+        function showCardById(cardId) {
+            // 隐藏所有卡片
+            document.querySelectorAll('.card-content').forEach(card => {
+                card.style.display = 'none';
+            });
+            // 移除所有标签激活状态
+            document.querySelectorAll('.tab-btn').forEach(tab => {
+                tab.classList.remove('tab-active');
+            });
+            // 显示目标卡片
+            const targetCard = document.querySelector(`.card-content[data-card-id="${cardId}"]`);
+            if (targetCard) {
+                targetCard.style.display = 'block';
+            }
+            // 激活目标标签
+            const targetTab = document.querySelector(`.tab-btn[data-card-id="${cardId}"]`);
+            if (targetTab) {
+                targetTab.classList.add('tab-active');
+            }
+            
+            // 更新本地存储中的激活状态
+            let cards = getStoredCards();
+            cards = cards.map(card => ({
+                ...card,
+                isActive: card.id === cardId
+            }));
+            localStorage.setItem(STORAGE_KEYS.cards, JSON.stringify(cards));
+        }
+
+        // ========== 事件绑定（优化版） ==========
+        function bindEventsDelegate() {
+            // 标签切换事件委托
+            document.getElementById('tabList').addEventListener('click', function(e) {
+                const tabBtn = e.target.closest('.tab-btn');
+                if (tabBtn) {
+                    const cardId = tabBtn.getAttribute('data-card-id');
+                    showCardById(cardId);
+                }
+            });
+
+            // 标签删除按钮事件
+            document.getElementById('tabList').addEventListener('click', function(e) {
+                const deleteBtn = e.target.closest('.tab-delete-btn');
+                if (deleteBtn) {
+                    e.stopPropagation(); // 阻止触发标签切换
+                    const cardId = deleteBtn.getAttribute('data-card-id');
+                    showDeleteConfirmModal(cardId);
+                }
+            });
+
+            // 刷新按钮事件委托
+            document.getElementById('cardContainer').addEventListener('click', function(e) {
+                const refreshBtn = e.target.closest('.refreshBtn');
+                if (refreshBtn) {
+                    const cardId = refreshBtn.getAttribute('data-card');
+                    updateCardData(cardId);
+                }
+            });
+
+            // 卡号显示/隐藏切换事件委托 - 优化交互
+            document.getElementById('cardContainer').addEventListener('click', function(e) {
+                const toggleBtn = e.target.closest('.toggle-number');
+                if (toggleBtn) {
+                    e.stopPropagation();
+                    const icon = toggleBtn.querySelector('i');
+                    const cardNumber = toggleBtn.parentElement.querySelector('.card-number');
+                    const originalNumber = cardNumber.getAttribute('data-original');
+                    
+                    if (!originalNumber) {
+                        showToast('暂无号码可显示', true);
+                        return;
+                    }
+                    
+                    if (icon.classList.contains('fa-eye-slash')) {
+                        // 隐藏卡号
+                        cardNumber.textContent = formatCardNumber(originalNumber);
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                        toggleBtn.setAttribute('title', '显示完整号码');
+                    } else {
+                        // 显示卡号
+                        cardNumber.textContent = originalNumber;
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                        toggleBtn.setAttribute('title', '隐藏号码');
+                    }
+                }
+            });
+
+            // 复制卡号事件委托 - 优化交互和容错
+            document.getElementById('cardContainer').addEventListener('click', function(e) {
+                const copyBtn = e.target.closest('.copy-number');
+                if (copyBtn) {
+                    e.stopPropagation();
+                    const cardNumber = copyBtn.parentElement.querySelector('.card-number');
+                    const originalNumber = cardNumber.getAttribute('data-original');
+                    
+                    if (!originalNumber) {
+                        showToast('暂无号码可复制', true);
+                        return;
+                    }
+                    
+                    try {
+                        // 现代浏览器剪贴板API
+                        if (navigator.clipboard) {
+                            navigator.clipboard.writeText(originalNumber).then(() => {
+                                showToast('号码已复制到剪贴板');
+                            }).catch(err => {
+                                throw err;
+                            });
+                        } else {
+                            // 降级方案
+                            const textArea = document.createElement('textarea');
+                            textArea.value = originalNumber;
+                            textArea.style.position = 'fixed';
+                            textArea.style.left = '-9999px';
+                            textArea.style.top = '0';
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textArea);
+                            showToast('号码已复制到剪贴板');
+                        }
+                    } catch (err) {
+                        showToast('复制失败，请手动复制', true);
+                        console.error('复制失败:', err);
+                    }
+                }
+            });
+        }
+
+        // 显示删除确认弹窗
+        let currentDeleteCardId = null;
+        function showDeleteConfirmModal(cardId) {
+            currentDeleteCardId = cardId;
+            const deleteModal = document.getElementById('deleteConfirmModal');
+            const deleteModalContent = document.getElementById('deleteModalContent');
+            showModal(deleteModal, deleteModalContent);
+        }
+
+        // 绑定删除确认事件
+        function bindDeleteEvents() {
+            const deleteModal = document.getElementById('deleteConfirmModal');
+            const deleteModalContent = document.getElementById('deleteModalContent');
+            const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+            
+            // 取消删除
+            cancelDeleteBtn.addEventListener('click', () => {
+                hideModal(deleteModal, deleteModalContent);
+                currentDeleteCardId = null;
+            });
+            
+            // 点击弹窗外层关闭
+            deleteModal.addEventListener('click', (e) => {
+                if (e.target === deleteModal) {
+                    hideModal(deleteModal, deleteModalContent);
+                    currentDeleteCardId = null;
+                }
+            });
+            
+            // 确认删除
+            confirmDeleteBtn.addEventListener('click', () => {
+                if (!currentDeleteCardId) return;
+                
+                // 删除标签
+                const tab = document.querySelector(`.tab-btn[data-card-id="${currentDeleteCardId}"]`);
+                if (tab) tab.remove();
+                
+                // 删除卡片内容
+                const card = document.querySelector(`.card-content[data-card-id="${currentDeleteCardId}"]`);
+                if (card) card.remove();
+                
+                // 从本地存储删除
+                deleteCardFromStorage(currentDeleteCardId);
+                
+                // 关闭弹窗
+                hideModal(deleteModal, deleteModalContent);
+                
+                // 显示提示
+                showToast('卡片已成功删除');
+                
+                // 重置当前删除ID
+                currentDeleteCardId = null;
+                
+                // 如果没有卡片了，激活空状态
+                if (document.querySelectorAll('.tab-btn').length === 0) {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                } else {
+                    // 激活第一个标签
+                    const firstTab = document.querySelector('.tab-btn');
+                    if (firstTab) firstTab.click();
+                }
+            });
+        }
+
+        // 绑定添加卡号事件
+        function bindAddCardEvents() {
+            const addCardBtn = document.getElementById('addCardBtn');
+            const addCardModal = document.getElementById('addCardModal');
+            const addModalContent = document.getElementById('addModalContent');
+            const cancelAddBtn = document.getElementById('cancelAddBtn');
+            const confirmAddBtn = document.getElementById('confirmAddBtn');
+            
+            // 打开添加弹窗
+            addCardBtn.addEventListener('click', () => {
+                document.getElementById('remarkInput').value = '';
+                document.getElementById('cardNumberInput').value = '';
+                showModal(addCardModal, addModalContent);
+            });
+            
+            // 取消添加
+            cancelAddBtn.addEventListener('click', () => {
+                hideModal(addCardModal, addModalContent);
+            });
+            
+            // 点击弹窗外层关闭
+            addCardModal.addEventListener('click', (e) => {
+                if (e.target === addCardModal) {
+                    hideModal(addCardModal, addModalContent);
+                }
+            });
+            
+            // 确认添加（自动查询数据）
+            confirmAddBtn.addEventListener('click', async () => {
+                const remark = document.getElementById('remarkInput').value.trim();
+                const cardNumber = document.getElementById('cardNumberInput').value.trim();
+                
+                // 验证
+                if (!cardNumber) {
+                    showToast('请输入卡号', true);
+                    return;
+                }
+                
+                // 检查是否重复添加（通过id/tel/iccid）
+                if (isCardExists(cardNumber)) {
+                    showToast('该卡号已添加，请勿重复添加', true);
+                    return;
+                }
+                
+                // 限制最多添加4个卡号
+                const tabCount = document.querySelectorAll('.tab-btn').length;
+                if (tabCount >= 4) {
+                    showToast('最多只能添加4个卡号', true);
+                    return;
+                }
+                
+                try {
+                    // 先调用API验证卡号并获取完整信息
+                    const loginData = await loginCard(cardNumber);
+                    
+                    // 创建新卡片数据（使用API返回的ID作为唯一标识）
+                    const newCard = {
+                        id: loginData.id.toString(), // 使用API返回的ID作为唯一标识
+                        number: cardNumber,
+                        remark: remark,
+                        loginData: loginData, // 保存完整的登录数据
+                        lastQuery: '查询中...',
+                        totalFlow: '0.00 GB',
+                        usedFlow: '0.00 GB',
+                        restFlow: '0.00 GB',
+                        usageRate: 0,
+                        isActive: true
+                    };
+                    
+                    // 保存到本地存储
+                    saveCardToStorage(newCard);
+                    
+                    // 隐藏空状态
+                    document.getElementById('emptyState').classList.add('hidden');
+                    
+                    // 渲染新卡片
+                    renderCard(newCard);
+                    
+                    // 激活并显示新卡片
+                    showCardById(newCard.id);
+                    
+                    // 关闭弹窗
+                    hideModal(addCardModal, addModalContent);
+                    
+                    // 查询流量数据
+                    const flowData = await queryFlowData(loginData.id);
+                    newCard.flowData = flowData;
+                    
+                    // 更新卡片显示
+                    renderCardContent(newCard);
+                    
+                    // 启动自动更新（10分钟一次）
+                    startAutoUpdate(newCard.id);
+                    
+                    // 显示提示
+                    showToast('卡号添加成功，已自动查询流量数据');
+                    
+                } catch (error) {
+                    showToast(`添加失败: ${error.message}`, true);
+                    console.error('添加卡号失败:', error);
+                }
+            });
+        }
+
+        // 绑定背景设置事件
+        function bindBackgroundEvents() {
+            const bgSettingBtn = document.getElementById('bgSettingBtn');
+            const bgModal = document.getElementById('bgModal');
+            const bgModalContent = document.getElementById('bgModalContent');
+            const bgUrlInput = document.getElementById('bgUrlInput');
+            const bgFileInput = document.getElementById('bgFileInput');
+            const fileName = document.getElementById('fileName');
+            const confirmBgBtn = document.getElementById('confirmBgBtn');
+            const resetBgBtn = document.getElementById('resetBgBtn');
+            
+            // 本地图片上传处理
+            bgFileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    fileName.textContent = file.name;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        bgUrlInput.value = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    fileName.textContent = '未选择文件';
+                }
+            });
+            
+            // 打开背景设置弹窗
+            bgSettingBtn.addEventListener('click', () => {
+                bgUrlInput.value = localStorage.getItem(STORAGE_KEYS.bgImage) || '';
+                fileName.textContent = '未选择文件';
+                showModal(bgModal, bgModalContent);
+            });
+            
+            // 关闭背景设置弹窗
+            bgModal.addEventListener('click', (e) => {
+                if (e.target === bgModal) {
+                    hideModal(bgModal, bgModalContent);
+                }
+            });
+            
+            // 预设背景点击
+            document.querySelectorAll('[data-bg]').forEach(item => {
+                item.addEventListener('click', () => {
+                    bgUrlInput.value = item.getAttribute('data-bg');
+                    fileName.textContent = '未选择文件';
+                    document.querySelectorAll('[data-bg]').forEach(i => i.classList.remove('border-primary'));
+                    item.classList.add('border-primary');
+                });
+            });
+            
+            // 确认设置背景
+            confirmBgBtn.addEventListener('click', () => {
+                const bgUrl = bgUrlInput.value.trim();
+                if (bgUrl) {
+                    document.body.style.backgroundImage = `url('${bgUrl}')`;
+                    localStorage.setItem(STORAGE_KEYS.bgImage, bgUrl);
+                    showToast('背景设置成功');
+                } else {
+                    showToast('请输入有效的图片链接或选择本地图片', true);
+                    return;
+                }
+                hideModal(bgModal, bgModalContent);
+            });
+            
+            // 重置背景
+            resetBgBtn.addEventListener('click', () => {
+                document.body.style.backgroundImage = '';
+                localStorage.removeItem(STORAGE_KEYS.bgImage);
+                bgUrlInput.value = '';
+                fileName.textContent = '未选择文件';
+                showToast('背景已重置');
+                hideModal(bgModal, bgModalContent);
+            });
+        }
+
+        // ========== 主初始化函数 ==========
+        function initApp() {
+            // 初始化主题
+            initTheme();
+            
+            // 初始化背景
+            initBackground();
+            
+            // 初始化存储的卡片
+            initStoredCards();
+            
+            // 绑定所有事件
+            bindAddCardEvents();
+            bindBackgroundEvents();
+            bindDeleteEvents();
+            bindEventsDelegate();
+            
+            console.log('酷鱼流量查询应用初始化完成');
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initApp);
+        
+        // 全局错误捕获，避免页面崩溃
+        window.addEventListener('error', (e) => {
+            console.error('全局错误:', e.error);
+            showToast('操作出错，请刷新页面重试', true);
+        });
+        
+        // 防止Promise错误未捕获
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('未处理的Promise错误:', e.reason);
+            showToast('操作出错，请稍后重试', true);
+        });
+    </script>
+</body>
 </html>
